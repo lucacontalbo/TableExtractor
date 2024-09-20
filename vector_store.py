@@ -8,6 +8,8 @@ from datetime import datetime
 from typing import List, Union, Any
 from tqdm import tqdm
 
+from sentence_transformers import SentenceTransformer
+from langchain.embeddings.base import Embeddings
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.retrievers import TFIDFRetriever
 from langchain_core.callbacks import CallbackManagerForRetrieverRun
@@ -19,6 +21,20 @@ from connectors import PgVectorConnector
 
 logging.basicConfig(filename="./log/bper.log", level=logging.INFO)
 logger = logging.getLogger("bper.vector_store")
+
+class CustomHuggingFaceEmbeddings(Embeddings):
+    def __init__(self, model_name: str = "Alibaba-NLP/gte-Qwen2-7B-instruct", max_seq_length: int = 8192):
+        # Initialize the SentenceTransformer model
+        self.model = SentenceTransformer(model_name, trust_remote_code=True)
+        self.model.max_seq_length = max_seq_length
+
+    def embed_documents(self, texts: list) -> list:
+        # Encode documents using model.encode
+        return self.model.encode(texts)
+
+    def embed_query(self, query: str) -> list:
+        # Encode query using model.encode
+        return self.model.encode([query])[0]  # Returns the embedding for a single query
 
 class Handler(object):
     def __init__(self, args):
@@ -43,8 +59,8 @@ class VectorStoreHandler(Handler):
         else:
             device = "cpu"
 
-        self.embeddings = self.get_embeddings(self.model_name, device)
-
+        #self.embeddings = self.get_embeddings(self.model_name, device)
+        self.embeddings = CustomHuggingFaceEmbeddings()
         self.pgconnector = PgVectorConnector()
 
     @functools.cache
@@ -128,6 +144,7 @@ class VectorStoreHandler(Handler):
             result = self.vector_store.similarity_search_with_score(query, k=k, filter=d_filter)
         else:
             result = self.vector_store.similarity_search(query, k=k, filter=d_filter)
+        #print(result[:5])
 
         return result
 
@@ -220,10 +237,10 @@ class SparseStoreHandler(Handler):
     @functools.cache
     def query_by_similarity(self, query, source, k=50, with_scores=False):
         conn = self.pgconnector.start_db_connection()
-        docs = self.pgconnector.get_pages(conn, source)
+        docs, docs_lowered = self.pgconnector.get_pages(conn, source)
         self.pgconnector.close_db_connection(conn)
 
-        retriever = self.switch_model[self.model_name].from_documents(docs)
+        retriever = self.switch_model[self.model_name].from_documents(docs_lowered)
 
         retriever.k = k
         results, scores = retriever.get_relevant_documents(query)
@@ -243,20 +260,25 @@ class EnsembleRetrieverHandler(SparseStoreHandler, VectorStoreHandler):
 
     def combine_results(self, semantic_results, syntactic_results, k=50, lmbd = .3):
         results = {}
+        res_debug = {}
         for i,r in enumerate([semantic_results, syntactic_results]):
-            for el in r:
+            for j,el in enumerate(r):
 
                 # semantic and syntactic Documents have different model_names
                 # we change them to an empty string to allow Document matching
 
                 el[0].metadata["model_name"] = ""
-
+                if i == 0:
+                    el[0].page_content = el[0].page_content.lower()
+                
                 hashed_key = self.hash_doc(el[0])
-                score = el[1] if i == 0 else el[1] * lmbd
+                score = -el[1] if i == 0 else el[1]*lmbd
                 if hashed_key not in results.keys():
                     results[hashed_key] = [el[0], score]
+                    res_debug[hashed_key] = [score, 0]
                 else:
                     results[hashed_key][1] += score
+                    res_debug[hashed_key][1] = score
         
         values = results.values()
         values = sorted(values, key=lambda x: x[1], reverse=True)[:k]

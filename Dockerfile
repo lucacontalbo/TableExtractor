@@ -2,7 +2,7 @@ FROM ankane/pgvector
 
 RUN echo 'DO $$ \
 BEGIN \
-    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = '\''public'\'' AND tablename = '\''$POSTGRES_SPARSE_TABLE_NAME'\'') THEN \
+    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = '\''public'\'' AND tablename = '\''page'\'') THEN \
         CREATE TABLE Page ( \
             id VARCHAR(255) PRIMARY KEY, \
             title VARCHAR(255) NOT NULL, \
