@@ -59,8 +59,8 @@ class VectorStoreHandler(Handler):
         else:
             device = "cpu"
 
-        #self.embeddings = self.get_embeddings(self.model_name, device)
-        self.embeddings = CustomHuggingFaceEmbeddings()
+        self.embeddings = self.get_embeddings(self.model_name, device)
+        #self.embeddings = CustomHuggingFaceEmbeddings(model_name=args["model_name"])
         self.pgconnector = PgVectorConnector()
 
     @functools.cache
@@ -214,7 +214,7 @@ class SparseStoreHandler(Handler):
             else:
                 allowed_docs.append(doc)
                 allowed_hashes.append(hash)
-        
+
         if len(unallowed_docs) > 0:
             logger.info(f"[{datetime.now()}] The following documents {unallowed_docs} are already in the db. Skipping...")
 

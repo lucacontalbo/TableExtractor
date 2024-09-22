@@ -4,10 +4,6 @@ import psycopg2
 
 from langchain_core.documents import Document
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
 logging.basicConfig(filename="./log/bper.log", level=logging.INFO)
 logger = logging.getLogger("bper.connector")
 
@@ -48,19 +44,23 @@ class PgVectorConnector:
 
         with conn.cursor() as cur:
             cur.execute(query, elements_to_add)
-            conn.commit()
+            a = conn.commit()
 
     def get_pages(self, conn, source):
         query = f"SELECT source, page_nbr, model_name, page_content FROM {os.environ['POSTGRES_SPARSE_TABLE_NAME']} WHERE source=%s;"
 
+        print(source)
         with conn.cursor() as cur:
             cur.execute(query, (source,))
             result = cur.fetchall()
-        
+        print(result)
         docs = []
+        docs_lowered = []
         for res in result:
-            doc = Document(page_content=res[-1], metadata={"source": res[0], "page": res[1], "model_name": res[2]})
+            doc = Document(page_content=res[-1], metadata={"page": res[1], "source": res[0], "model_name": res[2]})
+            doc_lowered = Document(page_content=res[-1].lower(), metadata={"page": res[1], "source": res[0], "model_name": res[2]})
             docs.append(doc)
+            docs_lowered.append(doc_lowered)
         
-        return docs
+        return docs, docs_lowered
         

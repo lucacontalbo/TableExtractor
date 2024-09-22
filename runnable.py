@@ -15,9 +15,11 @@ class Runnable:
             "page": PageProcessor,
         }
 
-        self.vsh = VectorStoreHandler(args)
-        self.ssh = SparseStoreHandler(args)
-        self.ens = EnsembleRetrieverHandler(args)
+        if args["use_ensemble"]:
+            self.ens = EnsembleRetrieverHandler(args)
+        else:
+            self.vsh = VectorStoreHandler(args)
+            self.ssh = SparseStoreHandler(args)
 
         try:
             self.processor = self.switch_method[args["method"]]()
