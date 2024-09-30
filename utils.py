@@ -2,6 +2,8 @@ import argparse
 import logging
 
 def check_args(args):
+    if len(args["load_query_from_file"]) > 0 and args["load_query_from_file"].split(".")[-1] != "json":
+        raise ValueError(f"argument \"load_query_from_file\" should either be empty or a json file")
     if sum([args["use_dense"], args["use_sparse"], args["use_ensemble"]]) != 1:
         raise ValueError(f"only one argument between \"use_dense\", \"use_sparse\" or \"use_ensemble\" must be specified")
     if args["query"] != '' and args["embed"]:
@@ -32,6 +34,8 @@ def init_args():
                         help='name of the sparse model to use')
     parser.add_argument('-L', '--lambda', type=float, required=False, default=0.3, 
                         help='integration scalar for syntactic features. Only usable with --use_ensemble')
+    parser.add_argument('-f', '--load_query_from_file', type=str, required=False, default="", 
+                        help='path of the GRI/Description file')
 
     args = vars(parser.parse_args())
     check_args(args)

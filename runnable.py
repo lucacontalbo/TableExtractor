@@ -28,6 +28,9 @@ class Runnable:
 
         self.args = args
 
+    def set_args(self, args):
+        self.args = args
+
     def run(self):
         if self.args["use_dense"]:
             self.vsh.get_vector_store()
