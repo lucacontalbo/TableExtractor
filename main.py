@@ -21,7 +21,7 @@ if __name__ == "__main__":
     if len(args["load_query_from_file"]) > 0:
       md_remover = MarkdownRemover()
       openai_model = OpenAIChatModel(os.environ["OPENAI_MODEL_NAME"], float(os.environ["OPENAI_TEMPERATURE"]))
-      with open(args["load_query_from_file"], 'r') as file:
+      with open(f"{args['load_query_from_file']}", 'r') as file:
         data = json.load(file)
       
       if os.path.isdir(args["pdf"]):
@@ -38,11 +38,12 @@ if __name__ == "__main__":
         
         dir_name = '.'.join(splitted_file_name[:-1])
 
-        args["pdf"] = file_name
+        args["pdf"] = os.path.join(args["pdf"], file_name)
         gri_code_to_page = {}
         tables_as_html = set()
 
-        for gri_code, description in data.items()[:3]:
+        for i, (gri_code, description) in enumerate(data.items()):
+          if i == 3: break
           if gri_code not in gri_code_to_page.keys():
             gri_code_to_page[gri_code] = []
 
@@ -56,9 +57,8 @@ if __name__ == "__main__":
             tables = ute.extract_table_unstructured([doc])
 
             for table in tables:
-              for i in range(len(table)):
-                tables_as_html.add((table[i].metadata.text_as_html, doc.page_content, doc["page"], i))
-                gri_code_to_page[gri_code].append((doc["page"], i))
+              tables_as_html.add((table[0].metadata.text_as_html, doc.page_content, doc.metadata["page"], table[-1]))
+              gri_code_to_page[gri_code].append((doc.metadata["page"], table[-1]))
 
         openai_results = []
         for table_html in tables_as_html:
@@ -69,7 +69,7 @@ if __name__ == "__main__":
           )
           #print(res.content)
 
-          if not os.path.exists(dir_name):
+          if not os.path.exists(f"table_dataset/{dir_name}"):
             os.mkdir(f"table_dataset/{dir_name}")
 
           content = md_remover.unmark(res.content)
@@ -80,6 +80,7 @@ if __name__ == "__main__":
 
         with open(f'table_dataset/{dir_name}/metadata.json', 'w') as json_file:
           json.dump(gri_code_to_page, json_file, indent=4)
+        args["pdf"] = "/".join(args["pdf"].split("/")[:-1])
           
     else:
       s = r.run()
