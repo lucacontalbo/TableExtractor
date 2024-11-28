@@ -240,6 +240,7 @@ class SparseStoreHandler(Handler):
         retriever = self.switch_model[self.model_name].from_documents(docs_lowered)
 
         retriever.k = k
+        print(len(docs_lowered))
         results, scores = retriever.get_relevant_documents(query)
 
         if with_scores:

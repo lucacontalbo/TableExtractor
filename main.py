@@ -11,8 +11,13 @@ from tqdm import tqdm
 import os
 import csv
 import json
+import numpy as np
 
 load_dotenv()
+
+"""from onnxruntime.capi import _pybind_state as C
+print(f"Available ONNXRT providers: {C.get_available_providers()}")
+print(a)"""
 
 if __name__ == "__main__":
     args = init_args()
@@ -38,12 +43,14 @@ if __name__ == "__main__":
         
         dir_name = '.'.join(splitted_file_name[:-1])
 
+        if os.path.exists(f"table_dataset/{dir_name}"):
+          continue
+
         args["pdf"] = os.path.join(args["pdf"], file_name)
         gri_code_to_page = {}
         tables_as_html = set()
 
         for i, (gri_code, description) in enumerate(data.items()):
-          if i == 3: break
           if gri_code not in gri_code_to_page.keys():
             gri_code_to_page[gri_code] = []
 
@@ -61,13 +68,11 @@ if __name__ == "__main__":
               gri_code_to_page[gri_code].append((doc.metadata["page"], table[-1]))
 
         openai_results = []
-        for table_html in tables_as_html:
-
+        for j, table_html in enumerate(tables_as_html):
           res = openai_model.invoke(
               system_prompt,
               human_prompt.format(table_html[0], table_html[1])
           )
-          #print(res.content)
 
           if not os.path.exists(f"table_dataset/{dir_name}"):
             os.mkdir(f"table_dataset/{dir_name}")
@@ -81,6 +86,5 @@ if __name__ == "__main__":
         with open(f'table_dataset/{dir_name}/metadata.json', 'w') as json_file:
           json.dump(gri_code_to_page, json_file, indent=4)
         args["pdf"] = "/".join(args["pdf"].split("/")[:-1])
-          
     else:
       s = r.run()

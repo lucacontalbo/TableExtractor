@@ -10,57 +10,6 @@ import pandas as pd
 from PIL import Image
 import torch
 
-class TableTransformerTableExtractor:
-    def __init__(self, model_name):
-        self.model_name = model_name #"microsoft/table-transformer-detection"
-        self.model = AutoModelForObjectDetection.from_pretrained(model_name)
-        self.processor = AutoImageProcessor.from_pretrained(model_name)
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = self.model.to(self.device)
-
-    def extract_text_from_cell(self, image, box):
-        cropped_image = image.crop((box[0], box[1], box[2], box[3]))
-        text = pytesseract.image_to_string(cropped_image, config='--psm 6')  # PSM 6 for single block of text
-        return text.strip()
-
-    def organize_cells_into_grid(boxes, texts):
-        rows = []
-        current_row = []
-        sorted_boxes = sorted(zip(boxes, texts), key=lambda x: x[0][1])  # Sort by y1 coordinate
-
-        for i, (box, text) in enumerate(sorted_boxes):
-            if current_row and abs(current_row[-1][0][1] - box[1]) > 10:  # New row detected
-                rows.append(current_row)
-                current_row = []
-            current_row.append((box, text))
-        if current_row:
-            rows.append(current_row)
-
-        return rows
-
-    def process_image(self, img_file):
-        image = Image.open(img_file)
-
-        inputs = self.processor(images=image, return_tensors="pt")
-        inputs = inputs.to(device)
-
-        with torch.no_grad():
-            outputs = model(**inputs)
-
-        boxes = outputs.logits.argmax(-1).squeeze().cpu().numpy()
-        table_data = []
-
-        for box in boxes:
-            text = extract_text_from_cell(image, box)
-            table_data.append(text)
-
-        table_grid = organize_cells_into_grid(boxes, table_data)
-        df = pd.DataFrame([[cell[1] for cell in row] for row in table_grid])
-
-        # Write the DataFrame to a CSV file
-        csv_filename = "extracted_table.csv"
-        df.to_csv(csv_filename, index=False, header=False)
-
 
 class UnstructuredTableExtractor:
     def __init__(self, model_name, strategy):
@@ -80,6 +29,7 @@ class UnstructuredTableExtractor:
     def extract_page(self, pdf_path, page_num):
         reader = PdfReader(pdf_path)
         writer = PdfWriter()
+
         writer.add_page(reader.pages[page_num])  # Page number adjustment
 
         output_pdf_path = f"temp_page_{page_num}.pdf"
@@ -96,7 +46,7 @@ class UnstructuredTableExtractor:
 
             page = doc.metadata["page"]
 
-            #temp_pdf_path = self.extract_page(f"{pdf_name}", int(page))
+            temp_pdf_path = self.extract_page(f"{pdf_name}", int(page))
             try:
                 temp_pdf_path = self.extract_page(f"{pdf_name}", int(page))
             except:

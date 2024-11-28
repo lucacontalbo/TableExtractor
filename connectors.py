@@ -53,7 +53,6 @@ class PgVectorConnector:
         with conn.cursor() as cur:
             cur.execute(query, (source,))
             result = cur.fetchall()
-        print(result)
         docs = []
         docs_lowered = []
         for res in result:
