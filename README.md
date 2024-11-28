@@ -1,4 +1,4 @@
-# BPER Indicator Extractor
+# Table Extraction for dataset generation
 
 
 
@@ -14,12 +14,14 @@ This repository contains the code to extract meaningful **financial and non-fina
 
 
 
-Go to the root of the directory, create a python virtual environment and activate it
+Go to the root of the directory, create a conda environment and activate it
 
 ```
-python3 -m venv env
-source env/bin/activate
+conda create -n tableextraction
+conda activate tableextraction
 ```
+
+Install `tesseract`, which is needed to extract tables from pdf files. To do that, go to [the documentation](https://tesseract-ocr.github.io/tessdoc/Installation.html) and install it inside the conda environment.
 
 Build and run the docker-compose file. The container hosts the pgvector database containing the embeddings extracted from the pdf files
 
@@ -86,12 +88,12 @@ python3 main.py --pdf [PDF_PATH] --query [QUERY_STRING] --use_ensemble --model_n
 
 The additional parameter `--lambda` is a scalar value that controls the importance of syntactic features over semantic ones. The higher the value, the more we give importance to the `SYN_MODEL_NAME` (e.g. tf_idf)
 
-#### To reproduce the results
+#### Generate the dataset of relevant csv tables
 
-Run the file `test.py` with
+A list of queries can be loaded into the system. From the obtained pdf pages, we can extract the tables and store the dataset. To do this, run the following command with the `--load_query_from_file` parameter
 
 ```
-python3 test.py --pdf [PDF_PATH] --use_[dense|sparse|ensemble] --model_name [MODEL_NAME] --syn_model_name [SYN_MODEL_NAME] --checkpoint_rate [CHECKPOINT_RATE]
+python3 main.py --pdf [PDF_PATH] --use_ensemble --model_name [MODEL_NAME] --syn_model_name [SYN_MODEL_NAME] --k [TOP_K_RESULTS] --lambda [LAMBDA_VALUE] --load_query_from_file [JSON_PATH]
 ```
 
-with `--checkpoint_rate` is the saving frequency. The files will be stored in the `tests/` directory
+The file must be a JSON file. To see some examples, check the `json_config/` directory
